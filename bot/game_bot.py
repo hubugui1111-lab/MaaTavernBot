@@ -295,16 +295,30 @@ class BotAction(CustomAction):
             ctrl.post_swipe(fx, fy, to_cx, to_cy, 500).wait()
             time.sleep(1.0)
 
-        # === 步骤3: 打出手牌 (m12) ===
+        # === 步骤3: 打出手牌 - 循环直到手牌清空或超过5次 ===
         play_to_cx, play_to_cy = rect_center(PLAY_TO_RECT)
-        for rect in HAND_CARD_RECTS:
-            fx, fy = rect_center(rect)
-            _log(f"[打牌] 拖拽 ({fx},{fy}) -> ({play_to_cx},{play_to_cy})")
-            ctrl.post_swipe(fx, fy, play_to_cx, play_to_cy, 500).wait()
-            time.sleep(1.0)
-            # 处理可能的发现弹窗 (m2321)
+        for loop in range(5):
+            if context.tasker.stopping:
+                break
+            _log(f"[打牌] 第{loop+1}轮")
+            for rect in HAND_CARD_RECTS:
+                fx, fy = rect_center(rect)
+                ctrl.post_swipe(fx, fy, play_to_cx, play_to_cy, 500).wait()
+                time.sleep(1.0)
+            # 处理发现弹窗
             ctrl.post_click(play_to_cx, play_to_cy).wait()
-            time.sleep(random.randint(100, 200) / 1000)
+            time.sleep(0.3)
+            # 检查金币是否变了（花掉了说明打出成功）
+            gold_text = self._read_gold(context)
+            _log(f"[打牌] 金币: '{gold_text}'")
+            if gold_text and "/" in gold_text:
+                try:
+                    parts = gold_text.split("/")
+                    if int(parts[0]) < 3:  # 金币少于3说明花了钱
+                        _log("[打牌] 金币已减少，停止循环")
+                        break
+                except:
+                    pass
 
         # === 步骤4: 英雄技能 (按照 5B: 金币花完后使用) ===
         hx, hy = rect_center(HERO_POWER_RECT)
@@ -326,6 +340,28 @@ class BotAction(CustomAction):
             ctrl.post_swipe(sx, sy, ex, ey, 500).wait()
             time.sleep(1.0)
             time.sleep(random.randint(100, 300) / 1000)
+
+        # === 校验：如果金币没花掉，重做一遍购买+打牌 ===
+        gold_text = self._read_gold(context)
+        _log(f"[回合{self.turn_number}] 金币OCR: '{gold_text}'")
+        if gold_text and "/" in gold_text:
+            parts = gold_text.split("/")
+            try:
+                a, b = int(parts[0]), int(parts[1])
+                if a == b and a >= 3:
+                    _log(f"[回合{self.turn_number}] 金币未花({a}/{b})，重做购买打牌")
+                    bt_x, bt_y = rect_center(BUY_TO_RECT)
+                    for rect in BUY_FROM_RECTS:
+                        fx, fy = rect_center(rect)
+                        ctrl.post_swipe(fx, fy, bt_x, bt_y, 500).wait()
+                        time.sleep(1.0)
+                    play_to_cx2, play_to_cy2 = rect_center(PLAY_TO_RECT)
+                    for rect in HAND_CARD_RECTS:
+                        fx, fy = rect_center(rect)
+                        ctrl.post_swipe(fx, fy, play_to_cx2, play_to_cy2, 500).wait()
+                        time.sleep(1.0)
+            except:
+                pass
 
         _log(f"[回合{self.turn_number}] === 完成 ===")
 
@@ -363,6 +399,23 @@ class BotAction(CustomAction):
         _log(f"[饰品] 确认 ({cx},{cy})")
         ctrl.post_click(cx, cy).wait()
         time.sleep(0.8)  # 等关闭
+
+    def _read_gold(self, context):
+        """OCR 读取右下角金币数（如 3/5），返回字符串"""
+        try:
+            img = context.tasker.controller.post_screencap().wait().get()
+            result = context.run_recognition("ReadGold", img, {
+                "ReadGold": {
+                    "recognition": "OCR",
+                    "expected": r"\d+\/\d+",
+                    "roi": [1050, 580, 200, 80],
+                }
+            })
+            if result and result.hit and result.best_result:
+                return result.best_result.text.strip()
+        except Exception as e:
+            _log(f"[OCR] 读金币失败: {e}")
+        return ""
 
     def _restart_game(self):
         """强制重启炉石传说"""
