@@ -153,6 +153,10 @@ class BotGUI(QMainWindow):
         self.btn_stop.setEnabled(False)
         ctrl_layout.addWidget(self.btn_start)
         ctrl_layout.addWidget(self.btn_stop)
+        btn_tray = QPushButton("⤓ 托盘")
+        btn_tray.setToolTip("最小化到系统托盘")
+        btn_tray.clicked.connect(self._minimize_to_tray)
+        ctrl_layout.addWidget(btn_tray)
         ll.addWidget(ctrl)
 
         # 定时
@@ -181,6 +185,11 @@ class BotGUI(QMainWindow):
         self.lbl_sched.setObjectName("status_off")
         sched_layout.addWidget(self.lbl_sched)
         ll.addWidget(sched)
+
+        disclaimer = QLabel("本软件开源免费，仅供学习交流使用")
+        disclaimer.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        disclaimer.setStyleSheet("color: #8D6E63; font-size: 11px; padding: 4px;")
+        ll.addWidget(disclaimer)
 
         ll.addStretch()
 
@@ -247,10 +256,14 @@ class BotGUI(QMainWindow):
         self.tray.hide()
         QApplication.quit()
 
-    def closeEvent(self, event):
-        event.ignore()
+    def _minimize_to_tray(self):
         self.hide()
-        self._log("窗口已最小化到托盘，右键托盘图标退出")
+        self._log("已最小化到托盘")
+
+    def closeEvent(self, event):
+        self._stop()
+        self.tray.hide()
+        QApplication.quit()
 
     # ---- 定时 ----
 
@@ -508,7 +521,7 @@ class BotGUI(QMainWindow):
 def main():
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
-    app.setQuitOnLastWindowClosed(False)  # 关闭窗口不到底退出，保留托盘
+    app.setQuitOnLastWindowClosed(False)  # 托盘保留
     window = BotGUI()
     window.show()
     sys.exit(app.exec())
