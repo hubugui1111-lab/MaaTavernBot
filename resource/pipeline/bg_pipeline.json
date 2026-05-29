@@ -1,0 +1,14 @@
+{
+    "MainLoop": {
+        "next": ["BotLoop"]
+    },
+    "BotLoop": {
+        "recognition": "Custom",
+        "custom_recognition": "PhaseDetector",
+        "action": "Custom",
+        "custom_action": "BotAction",
+        "next": ["BotLoop"],
+        "timeout": -1,
+        "rate_limit": 500
+    }
+}

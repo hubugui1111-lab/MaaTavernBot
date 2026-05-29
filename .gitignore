@@ -1,0 +1,16 @@
+# 打包产物
+dist/
+out/
+build/
+*.exe
+*.zip
+*.spec
+
+# 缓存
+.maa/
+__pycache__/
+*.pyc
+
+# 临时文件
+bot_debug.log
+screenshot_test.png
