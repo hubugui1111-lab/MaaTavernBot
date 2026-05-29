@@ -378,45 +378,68 @@ class BotAction(CustomAction):
             _log(f"[重启] 失败: {e}")
 
     def _handle_stuck(self, context, phase):
-        """卡住自救：依次尝试点返回 → 失败则重启游戏"""
+        """卡住自救：OCR 搜索返回 → 模板匹配 → 位置兜底 → 重启"""
         ctrl = context.tasker.controller
-
-        # 先截图看看有没有匹配的返回按钮模板
         img = ctrl.post_screencap().wait().get()
         h, w = img.shape[:2]
 
-        # 尝试1: 模板匹配找返回按钮
-        back_found = False
+        # 尝试1: OCR 全屏搜索"返回"文字
+        _log("[自救] OCR 搜索'返回'...")
+        found = self._ocr_find_and_click(context, img, "返回")
+        if found:
+            time.sleep(3)
+            return
+
+        # 尝试2: 模板匹配
         for tpl_name in ["back_btn.png", "bg_start_btn.png"]:
             result = self._find_button(img, tpl_name, threshold=0.7)
             if result:
                 x, y, sc = result
-                _log(f"[自救] 模板匹配到返回 ({x},{y}) sc={sc:.2f}")
+                _log(f"[自救] 模板匹配 ({x},{y}) sc={sc:.2f}")
                 ctrl.post_click(x, y).wait()
-                back_found = True
-                break
+                time.sleep(3)
+                return
 
-        # 尝试2: 没找到模板，点常见返回位置
-        if not back_found:
-            positions = [(60,60), (w-100, h-100), (w-60, 60), (60, h-100)]
-            for bx, by in positions:
-                _log(f"[自救] 尝试 ({bx},{by})")
-                ctrl.post_click(bx, by).wait()
-                time.sleep(1.0)
-
-        # 等待5秒看是否脱离
+        # 尝试3: 位置兜底
+        positions = [(60,60), (w-100, h-100), (w-60, 60), (60, h-100)]
+        for bx, by in positions:
+            _log(f"[自救] 尝试 ({bx},{by})")
+            ctrl.post_click(bx, by).wait()
+            time.sleep(1.0)
         time.sleep(5)
 
-        # 尝试3: 还卡着就重启游戏
-        _log(f"[自救] 重启游戏...")
+        # 尝试4: 重启游戏
+        _log("[自救] 重启游戏...")
         try:
-            self._adb_shell("am force-stop com.blizzard.wtcg.hearthstone")
+            from subprocess import run
+            adb = "D:/MuMuPlayer/nx_main/adb.exe"
+            run(f'\"{adb}\" -s {BotAction.adb_device} shell "am force-stop com.blizzard.wtcg.hearthstone"', shell=True, timeout=5)
             time.sleep(3)
             ctrl.post_start_app("com.blizzard.wtcg.hearthstone").wait()
             time.sleep(10)
-            _log(f"[自救] 游戏已重启")
+            _log("[自救] 游戏已重启")
         except Exception as e:
             _log(f"[自救] 重启失败: {e}")
+
+    def _ocr_find_and_click(self, context, img, keyword):
+        """用 MaaFramework OCR 搜索指定文字并点击"""
+        try:
+            result = context.run_recognition("OCRFinder", img, {
+                "OCRFinder": {
+                    "recognition": "OCR",
+                    "expected": keyword,
+                    "roi": [0, 0, img.shape[1], img.shape[0]],
+                }
+            })
+            if result and result.hit and result.best_result:
+                box = result.best_result.box
+                cx, cy = box[0] + box[2] // 2, box[1] + box[3] // 2
+                _log(f"[OCR] 找到'{keyword}' at ({cx},{cy})")
+                context.tasker.controller.post_click(cx, cy).wait()
+                return True
+        except Exception as e:
+            _log(f"[OCR] 搜索失败: {e}")
+        return False
 
     def _handle_combat(self, context):
         """战斗阶段——等待 + 处理发现弹窗"""
