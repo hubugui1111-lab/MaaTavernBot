@@ -16,6 +16,27 @@ class LogSignal(QObject):
     new_log = Signal(str)
 
 
+class GuiLogStream:
+    """把 print 输出重定向到 GUI 日志区"""
+    def __init__(self, signal):
+        self.signal = signal
+        self.buffer = ""
+
+    def write(self, text):
+        self.buffer += text
+        if "\n" in self.buffer:
+            lines = self.buffer.split("\n")
+            self.buffer = lines[-1]
+            for line in lines[:-1]:
+                if line.strip():
+                    self.signal.emit(line.strip())
+
+    def flush(self):
+        if self.buffer.strip():
+            self.signal.emit(self.buffer.strip())
+            self.buffer = ""
+
+
 class BotGUI(QMainWindow):
     # 预设图标（简单 16x16 棕色块）
     _icon = None
@@ -477,9 +498,13 @@ class BotGUI(QMainWindow):
 
         self.btn_start.setEnabled(False)
         self.btn_stop.setEnabled(True)
-        self.running = True  # 立即标记，防止定时重复触发
+        self.running = True
         self.lbl_running.setText("● 运行中")
         self._log("检测游戏状态...")
+
+        # 重定向 stdout 到日志区
+        self._orig_stdout = sys.stdout
+        sys.stdout = GuiLogStream(self.log_signal)
 
         def do_start():
             from bot.phase_detector import PhaseDetector
@@ -514,6 +539,8 @@ class BotGUI(QMainWindow):
         def do_stop():
             if self.tasker:
                 self.tasker.post_stop().wait()
+            if hasattr(self, '_orig_stdout'):
+                sys.stdout = self._orig_stdout
             self.btn_start.setEnabled(True)
             self.log_signal.new_log.emit("[信息] Bot 已停止")
             if close_game:

@@ -393,17 +393,21 @@ class BotAction(CustomAction):
         ctrl.post_click(cx_any, cy_any).wait()
 
     def _try_select_trinket(self, ctrl):
-        """随机选饰品 + 确认"""
+        """随机选饰品 + 确认（加长等待确保动画完成）"""
         from .screen_regions import TRINKET_RECTS, TRINKET_CONFIRM_RECT
         idx = random.randint(0, len(TRINKET_RECTS) - 1)
         tx, ty = rect_center(TRINKET_RECTS[idx])
         _log(f"[饰品] 选第{idx+1}个 ({tx},{ty})")
         ctrl.post_click(tx, ty).wait()
-        time.sleep(0.8)  # 等动画
+        time.sleep(1.5)  # 等动画（加长到1.5秒）
         cx, cy = rect_center(TRINKET_CONFIRM_RECT)
         _log(f"[饰品] 确认 ({cx},{cy})")
         ctrl.post_click(cx, cy).wait()
-        time.sleep(0.8)  # 等关闭
+        time.sleep(1.0)  # 等确认生效
+        # 确认后再点一次，防止第一次没点到
+        time.sleep(0.5)
+        ctrl.post_click(cx, cy).wait()
+        time.sleep(0.5)
 
     def _count_hand_cards(self, img):
         """金色+蓝色检测手牌数量"""
@@ -423,18 +427,20 @@ class BotAction(CustomAction):
         return count
 
     def _find_board_minions(self, img):
-        """蓝框检测我方场上随从，返回[(x,y),...]"""
-        board = img[360:450, 80:1200]
+        """蓝框+绿框检测我方场上随从，返回[(x,y),...]"""
+        board = img[340:460, 80:1200]
         hsv = cv2.cvtColor(board, cv2.COLOR_BGR2HSV)
-        mask = cv2.inRange(hsv, np.array([90,50,50]), np.array([140,255,255]))
+        blue = cv2.inRange(hsv, np.array([85,40,40]), np.array([140,255,255]))
+        green = cv2.inRange(hsv, np.array([35,40,40]), np.array([85,255,255]))
+        mask = cv2.bitwise_or(blue, green)
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         regions = []
         for cnt in contours:
             area = cv2.contourArea(cnt)
-            if 300 < area < 5000:
+            if 200 < area < 5000:
                 x, y, rw, rh = cv2.boundingRect(cnt)
-                if 30 < rw < 100 and 30 < rh < 100:
-                    regions.append((x + rw//2 + 80, y + rh//2 + 360))
+                if 20 < rw < 100 and 20 < rh < 100:
+                    regions.append((x + rw//2 + 80, y + rh//2 + 340))
         clusters = []
         for cx, cy in sorted(regions):
             merged = False
