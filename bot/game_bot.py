@@ -548,7 +548,7 @@ class BotAction(CustomAction):
         ctrl.post_click(tx, ty).wait()
 
     def _handle_game_end(self, context):
-        """对局结算——点击退出"""
+        """对局结算——点击退出 + 检查任务"""
         self.turn_number = 0
         self.tavern_tier = 1
         img = context.tasker.controller.post_screencap().wait().get()

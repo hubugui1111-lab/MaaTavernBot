@@ -48,6 +48,12 @@ class BotGUI(QMainWindow):
         self.status_timer.timeout.connect(self._refresh_status)
         self.status_timer.start(1000)
 
+        # 自动连接（启动后3秒尝试连接上次端口）
+        self._auto_connect_timer = QTimer()
+        self._auto_connect_timer.timeout.connect(self._auto_connect)
+        self._auto_connect_timer.setSingleShot(True)
+        self._auto_connect_timer.start(0)
+
     def _setup_theme(self):
         dark = "#2E1A0E"
         mid = "#3E2723"
@@ -256,6 +262,31 @@ class BotGUI(QMainWindow):
         self.tray.hide()
         QApplication.quit()
 
+    def _auto_connect(self):
+        """启动时立即自动连接（优先上次端口，否则用默认）"""
+        try:
+            exe_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
+            cfg = os.path.join(exe_dir, '.maa', 'last_port.txt')
+            if os.path.exists(cfg):
+                with open(cfg) as f:
+                    last_port = f.read().strip()
+                    self.port_input.setText(last_port)
+            port = self.port_input.text().strip()
+            if port:
+                self._log(f"自动连接 127.0.0.1:{port} ...")
+                self._connect()
+        except:
+            pass
+
+    def _save_port(self, port):
+        try:
+            exe_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
+            os.makedirs(os.path.join(exe_dir, '.maa'), exist_ok=True)
+            with open(os.path.join(exe_dir, '.maa', 'last_port.txt'), 'w') as f:
+                f.write(str(port))
+        except:
+            pass
+
     def _minimize_to_tray(self):
         self.hide()
         self._log("已最小化到托盘")
@@ -428,6 +459,7 @@ class BotGUI(QMainWindow):
                     return
 
                 self.connected = True
+                self._save_port(port)
                 self.log_signal.new_log.emit("[信息] 连接成功，可以开始")
                 self.conn_status.setText("● 已连接")
             except Exception as e:
