@@ -474,25 +474,29 @@ class BotGUI(QMainWindow):
         threading.Thread(target=do_start, daemon=True).start()
 
     def _stop(self, close_game=False):
-        if self.tasker:
-            self.tasker.post_stop().wait()
         self.running = False
-        self.btn_start.setEnabled(True)
         self.btn_stop.setEnabled(False)
         self.lbl_running.setText("● 已停止")
-        self._log("[信息] Bot 已停止")
+        self._log("[信息] 正在停止...")
 
-        if close_game:
-            self._log("[定时] 正在关闭游戏...")
-            try:
-                import subprocess
-                from bot.game_bot import BotAction
-                if BotAction.adb_device:
-                    adb = "D:/MuMuPlayer/nx_main/adb.exe"
-                    subprocess.run(f'"{adb}" -s {BotAction.adb_device} shell "am force-stop com.blizzard.wtcg.hearthstone"', shell=True, timeout=5)
-            except Exception as e:
-                self._log(f"[定时] 关闭游戏失败: {e}")
-            self._log("[定时] 游戏已关闭")
+        def do_stop():
+            if self.tasker:
+                self.tasker.post_stop().wait()
+            self.btn_start.setEnabled(True)
+            self.log_signal.new_log.emit("[信息] Bot 已停止")
+            if close_game:
+                self.log_signal.new_log.emit("[定时] 正在关闭游戏...")
+                try:
+                    import subprocess
+                    from bot.game_bot import BotAction
+                    if BotAction.adb_device:
+                        adb = "D:/MuMuPlayer/nx_main/adb.exe"
+                        subprocess.run(f'\"{adb}\" -s {BotAction.adb_device} shell \"am force-stop com.blizzard.wtcg.hearthstone\"', shell=True, timeout=5)
+                        self.log_signal.new_log.emit("[定时] 游戏已关闭")
+                except Exception as e:
+                    self.log_signal.new_log.emit(f"[定时] 关闭游戏失败: {e}")
+
+        threading.Thread(target=do_stop, daemon=True).start()
 
     # ---- 日志 ----
 

@@ -334,12 +334,15 @@ class BotAction(CustomAction):
         ctrl.post_click(tx, ty).wait()
         time.sleep(0.2)
 
-        # === 步骤6: 出售随从 (m14) ===
-        # 打出后出售最右边随从腾空间（每回合50%概率执行）
-        if self.turn_number > 2 and random.random() < 0.5:
+        # === 步骤6: 出售随从 ===
+        # 手牌多且满场时，卖掉最右边随从腾空间
+        hand_count = self._count_hand_cards(img)
+        board_count = len(self._find_board_minions(img))
+        _log(f"[计数] 手牌{hand_count} 场上{board_count}")
+        if hand_count >= 8 and board_count >= 6:
+            _log(f"[出售] 手牌多({hand_count})且满场({board_count})，卖最右随从")
             sx, sy = rect_center(SELL_FROM_RECT)
             ex, ey = rect_center(SELL_TO_RECT)
-            _log(f"[出售] 拖拽 ({sx},{sy}) -> ({ex},{ey})")
             ctrl.post_swipe(sx, sy, ex, ey, 500).wait()
             time.sleep(1.0)
             time.sleep(random.randint(100, 300) / 1000)
@@ -401,6 +404,23 @@ class BotAction(CustomAction):
         _log(f"[饰品] 确认 ({cx},{cy})")
         ctrl.post_click(cx, cy).wait()
         time.sleep(0.8)  # 等关闭
+
+    def _count_hand_cards(self, img):
+        """金色+蓝色检测手牌数量"""
+        hand = img[600:710, 50:1230]
+        hsv = cv2.cvtColor(hand, cv2.COLOR_BGR2HSV)
+        gold = cv2.inRange(hsv, np.array([15,60,80]), np.array([35,255,255]))
+        blue = cv2.inRange(hsv, np.array([90,50,50]), np.array([140,255,255]))
+        mask = cv2.bitwise_or(gold, blue)
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        count = 0
+        for cnt in contours:
+            area = cv2.contourArea(cnt)
+            if 200 < area < 8000:
+                x, y, rw, rh = cv2.boundingRect(cnt)
+                if 30 < rw < 120 and 30 < rh < 120:
+                    count += 1
+        return count
 
     def _find_board_minions(self, img):
         """蓝框检测我方场上随从，返回[(x,y),...]"""
