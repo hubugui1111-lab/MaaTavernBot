@@ -219,7 +219,6 @@ class BotAction(CustomAction):
         """英雄选择——选第2个英雄+确认（仅一次）"""
         if self._hero_done:
             return
-        self._hero_done = True
 
         ctrl = context.tasker.controller
         img = ctrl.post_screencap().wait().get()
@@ -231,6 +230,7 @@ class BotAction(CustomAction):
         time.sleep(1.0)
         print(f"[导航] 确认选择 ({cx}, {cy})")
         ctrl.post_click(cx, cy).wait()
+        self._hero_done = True  # 成功后才标记，失败可重试
         _log("[英雄] 完成")
 
     # ---- 游戏阶段 ----
@@ -261,8 +261,8 @@ class BotAction(CustomAction):
             upgrade_score, _, _, _ = cv2.minMaxLoc(r)
         _log(f"[回合{self.turn_number}] 升级分数={upgrade_score:.2f}")
 
-        # 升级按钮分数低可能是饰品回合
-        if upgrade_score < 0.6:
+        # 升级按钮分数低且模板存在 → 可能是饰品回合
+        if tpl is not None and upgrade_score < 0.6:
             self._try_select_trinket(ctrl)
             time.sleep(0.5)
             img = ctrl.post_screencap().wait().get()
@@ -316,7 +316,8 @@ class BotAction(CustomAction):
                 break
 
         # === 处理战吼/法术选目标: 点击一个我方随从 ===
-        board_minions = self._find_board_minions(img)
+        img_fresh = ctrl.post_screencap().wait().get()
+        board_minions = self._find_board_minions(img_fresh)
         if board_minions and len(board_minions) > 0:
             tx, ty = random.choice(board_minions)
             _log(f"[目标] 选随从 ({tx},{ty}) (共{len(board_minions)}个)")
@@ -336,8 +337,8 @@ class BotAction(CustomAction):
 
         # === 步骤6: 出售随从 ===
         # 手牌多且满场时，卖掉最右边随从腾空间
-        hand_count = self._count_hand_cards(img)
-        board_count = len(self._find_board_minions(img))
+        hand_count = self._count_hand_cards(img_fresh)
+        board_count = len(board_minions)
         _log(f"[计数] 手牌{hand_count} 场上{board_count}")
         if hand_count >= 8 and board_count >= 6:
             _log(f"[出售] 手牌多({hand_count})且满场({board_count})，卖最右随从")
@@ -430,28 +431,38 @@ class BotAction(CustomAction):
         """蓝框+绿框检测我方场上随从，返回[(x,y),...]"""
         board = img[340:460, 80:1200]
         hsv = cv2.cvtColor(board, cv2.COLOR_BGR2HSV)
-        blue = cv2.inRange(hsv, np.array([85,40,40]), np.array([140,255,255]))
-        green = cv2.inRange(hsv, np.array([35,40,40]), np.array([85,255,255]))
-        mask = cv2.bitwise_or(blue, green)
+        # 多颜色检测（随从边框颜色多样）
+        blue = cv2.inRange(hsv, np.array([80,30,30]), np.array([140,255,255]))
+        green = cv2.inRange(hsv, np.array([30,30,30]), np.array([85,255,255]))
+        gold = cv2.inRange(hsv, np.array([10,30,30]), np.array([35,255,255]))
+        white = cv2.inRange(hsv, np.array([0,0,180]), np.array([180,30,255]))
+        mask = cv2.bitwise_or(cv2.bitwise_or(blue, green), cv2.bitwise_or(gold, white))
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         regions = []
         for cnt in contours:
             area = cv2.contourArea(cnt)
-            if 200 < area < 5000:
+            if 200 < area < 8000:
                 x, y, rw, rh = cv2.boundingRect(cnt)
-                if 20 < rw < 100 and 20 < rh < 100:
-                    regions.append((x + rw//2 + 80, y + rh//2 + 340))
+                if 25 < rw < 100 and 25 < rh < 100:
+                    cx, cy = x + rw//2 + 80, y + rh//2 + 340
+                    regions.append((cx, cy))
+        # 改进聚类：水平和垂直距离都要检查
         clusters = []
         for cx, cy in sorted(regions):
             merged = False
             for c in clusters:
-                if abs(cx - c[-1][0]) < 60:
-                    c.append((cx,cy))
+                # 计算聚类中心
+                acx = sum(p[0] for p in c) / len(c)
+                acy = sum(p[1] for p in c) / len(c)
+                if abs(cx - acx) < 70 and abs(cy - acy) < 50:
+                    c.append((cx, cy))
                     merged = True
                     break
             if not merged:
-                clusters.append([(cx,cy)])
-        return [(int(sum(p[0] for p in c)/len(c)), int(sum(p[1] for p in c)/len(c))) for c in clusters]
+                clusters.append([(cx, cy)])
+        # 过滤噪点，取聚类中心
+        return [(int(sum(p[0] for p in c)/len(c)), int(sum(p[1] for p in c)/len(c)))
+                for c in clusters if len(c) >= 1 and len(c) <= 10]
 
     def _read_gold(self, context):
         """用升级按钮模板匹配分数间接判断金币是否花掉——分数变高说明金币花了"""

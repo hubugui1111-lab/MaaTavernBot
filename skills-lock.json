@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "paddleocr-text-recognition": {
+      "source": "aidenwu0209/paddleocr-skills",
+      "sourceType": "github",
+      "skillPath": "skills/paddleocr-text-recognition/SKILL.md",
+      "computedHash": "a1a9357f3f9fa4af7893dc15666dab70eea12daf863a77aaa1b1ca4f7f16b3f9"
+    },
+    "smart-ocr": {
+      "source": "claude-office-skills/skills",
+      "sourceType": "github",
+      "skillPath": "smart-ocr/SKILL.md",
+      "computedHash": "be9b5a5a010aeb768c5b648d3bcdcea3d04309678fa9c9ffc8319f6d43ab3ccc"
+    }
+  }
+}
