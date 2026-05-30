@@ -14,3 +14,4 @@ __pycache__/
 # 临时文件
 bot_debug.log
 screenshot_test.png
+resource/image/*.png
