@@ -236,7 +236,7 @@ class BotAction(CustomAction):
     # ---- 游戏阶段 ----
 
     def _handle_recruit(self, context):
-        """招募阶段——按 APK 主逻辑执行回合操作（仅一次）"""
+        """招募阶段——执行回合操作（仅一次）"""
         if self._recruit_done:
             return
         if context.tasker.stopping:
@@ -308,17 +308,20 @@ class BotAction(CustomAction):
             # 处理发现弹窗
             ctrl.post_click(play_to_cx, play_to_cy).wait()
             time.sleep(0.3)
-            # 检查金币是否变了（花掉了说明打出成功）
-            gold_text = self._read_gold(context)
-            _log(f"[打牌] 金币: '{gold_text}'")
-            if gold_text and "/" in gold_text:
-                try:
-                    parts = gold_text.split("/")
-                    if int(parts[0]) < 3:  # 金币少于3说明花了钱
-                        _log("[打牌] 金币已减少，停止循环")
-                        break
-                except:
-                    pass
+            # 检查升级分数是否提高（金币花了）
+            gs = self._read_gold(context)
+            _log(f"[打牌] 升级分: '{gs}'")
+            if gs and "upgrade=" in gs and float(gs.split("=")[1]) > 0.5:
+                _log("[打牌] 金币已花，停止循环")
+                break
+
+        # === 处理战吼/法术选目标: 点击一个我方随从 ===
+        board_minions = self._find_board_minions(img)
+        if board_minions and len(board_minions) > 0:
+            tx, ty = random.choice(board_minions)
+            _log(f"[目标] 选随从 ({tx},{ty}) (共{len(board_minions)}个)")
+            ctrl.post_click(tx, ty).wait()
+            time.sleep(0.3)
 
         # === 步骤4: 英雄技能 (按照 5B: 金币花完后使用) ===
         hx, hy = rect_center(HERO_POWER_RECT)
@@ -341,24 +344,23 @@ class BotAction(CustomAction):
             time.sleep(1.0)
             time.sleep(random.randint(100, 300) / 1000)
 
-        # === 校验：如果金币没花掉，重做一遍购买+打牌 ===
-        gold_text = self._read_gold(context)
-        _log(f"[回合{self.turn_number}] 金币OCR: '{gold_text}'")
-        if gold_text and "/" in gold_text:
-            parts = gold_text.split("/")
+        # === 校验：如果升级分数还是很低(金币没花)，重做购买打牌 ===
+        after_score_text = self._read_gold(context)
+        _log(f"[回合{self.turn_number}] 操作后升级分数: '{after_score_text}'")
+        if after_score_text and "upgrade=" in after_score_text:
             try:
-                a, b = int(parts[0]), int(parts[1])
-                if a == b and a >= 3:
-                    _log(f"[回合{self.turn_number}] 金币未花({a}/{b})，重做购买打牌")
+                after_score = float(after_score_text.split("=")[1])
+                if after_score < 0.5 and upgrade_score < 0.5:
+                    _log(f"[回合{self.turn_number}] 金币未花，重做购买打牌")
                     bt_x, bt_y = rect_center(BUY_TO_RECT)
                     for rect in BUY_FROM_RECTS:
                         fx, fy = rect_center(rect)
                         ctrl.post_swipe(fx, fy, bt_x, bt_y, 500).wait()
                         time.sleep(1.0)
-                    play_to_cx2, play_to_cy2 = rect_center(PLAY_TO_RECT)
+                    pt_x, pt_y = rect_center(PLAY_TO_RECT)
                     for rect in HAND_CARD_RECTS:
                         fx, fy = rect_center(rect)
-                        ctrl.post_swipe(fx, fy, play_to_cx2, play_to_cy2, 500).wait()
+                        ctrl.post_swipe(fx, fy, pt_x, pt_y, 500).wait()
                         time.sleep(1.0)
             except:
                 pass
@@ -388,7 +390,7 @@ class BotAction(CustomAction):
         ctrl.post_click(cx_any, cy_any).wait()
 
     def _try_select_trinket(self, ctrl):
-        """APK m42: 随机选饰品 + 确认（按APK逻辑）"""
+        """随机选饰品 + 确认"""
         from .screen_regions import TRINKET_RECTS, TRINKET_CONFIRM_RECT
         idx = random.randint(0, len(TRINKET_RECTS) - 1)
         tx, ty = rect_center(TRINKET_RECTS[idx])
@@ -400,21 +402,42 @@ class BotAction(CustomAction):
         ctrl.post_click(cx, cy).wait()
         time.sleep(0.8)  # 等关闭
 
+    def _find_board_minions(self, img):
+        """蓝框检测我方场上随从，返回[(x,y),...]"""
+        board = img[360:450, 80:1200]
+        hsv = cv2.cvtColor(board, cv2.COLOR_BGR2HSV)
+        mask = cv2.inRange(hsv, np.array([90,50,50]), np.array([140,255,255]))
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        regions = []
+        for cnt in contours:
+            area = cv2.contourArea(cnt)
+            if 300 < area < 5000:
+                x, y, rw, rh = cv2.boundingRect(cnt)
+                if 30 < rw < 100 and 30 < rh < 100:
+                    regions.append((x + rw//2 + 80, y + rh//2 + 360))
+        clusters = []
+        for cx, cy in sorted(regions):
+            merged = False
+            for c in clusters:
+                if abs(cx - c[-1][0]) < 60:
+                    c.append((cx,cy))
+                    merged = True
+                    break
+            if not merged:
+                clusters.append([(cx,cy)])
+        return [(int(sum(p[0] for p in c)/len(c)), int(sum(p[1] for p in c)/len(c))) for c in clusters]
+
     def _read_gold(self, context):
-        """OCR 读取右下角金币数（如 3/5），返回字符串"""
+        """用升级按钮模板匹配分数间接判断金币是否花掉——分数变高说明金币花了"""
         try:
             img = context.tasker.controller.post_screencap().wait().get()
-            result = context.run_recognition("ReadGold", img, {
-                "ReadGold": {
-                    "recognition": "OCR",
-                    "expected": r"\d+\/\d+",
-                    "roi": [1050, 580, 200, 80],
-                }
-            })
-            if result and result.hit and result.best_result:
-                return result.best_result.text.strip()
-        except Exception as e:
-            _log(f"[OCR] 读金币失败: {e}")
+            tpl = self._load_template("tavern_upgrade_btn.png")
+            if tpl is not None:
+                r = cv2.matchTemplate(img, tpl, cv2.TM_CCOEFF_NORMED)
+                score, _, _, _ = cv2.minMaxLoc(r)
+                return f"upgrade={score:.2f}"
+        except:
+            pass
         return ""
 
     def _restart_game(self):

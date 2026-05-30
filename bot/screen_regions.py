@@ -25,7 +25,7 @@ ENTER_BG_BTN = rect_center([544, 264, 736, 280])
 HERO_SELECT_SECOND = (570, 300)
 HERO_CONFIRM_BTN = (600, 580)
 
-# ===== 招募（APK ×0.8） =====
+# ===== 招募 =====
 TAVERN_UPGRADE_RECT = [516, 120, 544, 156]
 TAVERN_REFRESH_RECT = [736, 120, 772, 156]
 
