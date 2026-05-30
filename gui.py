@@ -1,4 +1,4 @@
-"""GUI 界面 —— AALC 风格：顶部导航 + 左侧控制 + 右侧日志"""
+"""GUI 界面 —— 顶部导航 + 左侧控制 + 右侧日志"""
 
 import os, sys, time, json, threading
 from datetime import datetime
@@ -39,7 +39,7 @@ class BotGUI(QMainWindow):
     CHANGELOG = """
 MaaTavernBot v1.5 更新内容:
 
-• 全新 AALC 风格界面，顶部导航切换
+• 全新顶部导航界面，功能分区切换
 • 任务自动更换功能 (Vision + MinerU OCR)
 • 启动自动杀旧进程
 • 代码审查修复 3 个关键 Bug
@@ -52,6 +52,15 @@ MaaTavernBot v1.5 更新内容:
         super().__init__()
         self.setWindowTitle(f"MaaTavernBot v{self.VERSION}")
         self.resize(960, 640); self.setMinimumSize(800, 500)
+
+        # 图标路径
+        if getattr(sys, 'frozen', False):
+            self._app_dir = sys._MEIPASS
+        else:
+            self._app_dir = os.path.dirname(os.path.abspath(__file__))
+        ico = os.path.join(self._app_dir, "resource", "app_icon.ico")
+        if os.path.exists(ico):
+            self.setWindowIcon(QIcon(ico))
 
         self.controller = None; self.tasker = None
         self.running = False; self.connected = False
@@ -236,10 +245,15 @@ MuMu模拟器，分辨率<b>1600×900横屏、DPI 240</b>，开启ADB调试</p>
     # ===== Tray =====
     def _setup_tray(self):
         self.tray = QSystemTrayIcon(self)
-        from PySide6.QtGui import QPixmap, QPainter, QColor
-        px = QPixmap(32,32); px.fill(Qt.GlobalColor.transparent); p = QPainter(px)
-        p.setBrush(QColor("#5D4037")); p.drawRoundedRect(2,2,28,28,6,6); p.end()
-        self.tray.setIcon(QIcon(px)); self.tray.setToolTip("MaaTavernBot")
+        icon_path = os.path.join(self._app_dir, "resource", "tray_icon.png")
+        if os.path.exists(icon_path):
+            self.tray.setIcon(QIcon(icon_path))
+        else:
+            from PySide6.QtGui import QPixmap, QPainter, QColor
+            px = QPixmap(32,32); px.fill(Qt.GlobalColor.transparent); p = QPainter(px)
+            p.setBrush(QColor("#5D4037")); p.drawRoundedRect(2,2,28,28,6,6); p.end()
+            self.tray.setIcon(QIcon(px))
+        self.tray.setToolTip("MaaTavernBot v1.5")
         m = QMenu(); m.addAction("显示").triggered.connect(self._show_window)
         m.addAction("退出").triggered.connect(self._quit_app)
         self.tray.setContextMenu(m); self.tray.show()
@@ -277,9 +291,9 @@ MuMu模拟器，分辨率<b>1600×900横屏、DPI 240</b>，开启ADB调试</p>
     def _check_update(self, silent=False):
         def do():
             try:
-                import urllib.request, json
-                req = urllib.request.Request(self.GITHUB_API, headers={"User-Agent": "MaaTavernBot"})
-                data = json.loads(urllib.request.urlopen(req, timeout=10).read())
+                import urllib.request, json, urllib.error, socket
+                req = urllib.request.Request(self.GITHUB_API, headers={"User-Agent": "MaaTavernBot/1.5"})
+                data = json.loads(urllib.request.urlopen(req, timeout=8).read())
                 latest = data.get("tag_name", "").lstrip("v")
                 url = data.get("html_url", "https://github.com/hubugui1111-lab/MaaTavernBot/releases/latest")
                 if not latest:
@@ -302,6 +316,10 @@ MuMu模拟器，分辨率<b>1600×900横屏、DPI 240</b>，开启ADB调试</p>
                     msg = f"当前版本: v{self.VERSION}\n最新版本: v{latest}"
                     if newer: msg += "\n\n是否更新？"
                     self._show_update_dialog_via_signal(title, msg, url)
+            except (urllib.error.URLError, socket.timeout, ConnectionError, TimeoutError) as e:
+                if not silent:
+                    self.log_signal.show_dialog.emit("检测更新",
+                        "网络不通，无法连接 GitHub\n如需检查更新请开启 VPN 或代理后重试")
             except Exception as e:
                 if not silent:
                     self.log_signal.show_dialog.emit("检测更新", f"检查失败: {e}")
