@@ -16,3 +16,6 @@ bot_debug.log
 screenshot_test.png
 resource/image/*.png
 vision.js
+
+# 开发日志 (不上传 GitHub)
+devlog/

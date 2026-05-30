@@ -565,11 +565,20 @@ class BotAction(CustomAction):
         ctrl.post_click(tx, ty).wait()
 
     def _handle_game_end(self, context):
-        """对局结算——点击退出 + 检查任务"""
+        """对局结算——点击退出 + 任务自动更换"""
         self.turn_number = 0
         self.tavern_tier = 1
-        img = context.tasker.controller.post_screencap().wait().get()
+        ctrl = context.tasker.controller
         x, y = rect_center(GAME_END_TAP_RECT)
-        print(f"[结算] 对局结束，点击退出 ({x}, {y})")
-        context.tasker.controller.post_click(x, y).wait()
+        print(f"[结算] 点击退出 ({x}, {y})")
+        ctrl.post_click(x, y).wait()
         time.sleep(1.5)
+
+        try:
+            from .quest_reroll import QuestReroll
+            if not hasattr(self, '_qr'):
+                self._qr = QuestReroll()
+            if self._qr.should_check():
+                self._qr.do_reroll(ctrl)
+        except Exception as e:
+            _log(f"[任务] {e}")
