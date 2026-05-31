@@ -1,0 +1,202 @@
+/* === 炉石酒馆 QSS === */
+
+/* 全局 */
+QWidget {
+    color: #f0e0c0;
+    font-family: "Microsoft YaHei", "SimHei", sans-serif;
+    font-size: 13px;
+}
+
+QMainWindow {
+    background-color: #1a0f0a;
+}
+
+/* 子控件用半透明 */
+QGroupBox, QFrame#status_bar, QTextEdit, QPlainTextEdit, QLineEdit, QComboBox {
+    background-color: rgba(20, 10, 4, 210);
+}
+
+/* 面板/分组 */
+QGroupBox {
+    border: 2px solid #8B6914;
+    border-radius: 8px;
+    margin-top: 14px;
+    padding: 12px 8px 8px 8px;
+    background-color: rgba(25, 14, 5, 200);
+    font-weight: bold;
+    font-size: 14px;
+    color: #f5c842;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 2px 12px;
+    color: #f5c842;
+    background-color: #1e1206;
+    border: 1px solid #8B6914;
+    border-radius: 4px;
+}
+
+/* 输入框 */
+QLineEdit {
+    border: 2px solid #6B5010;
+    border-radius: 6px;
+    padding: 6px 10px;
+    background-color: #2a1a08;
+    color: #ffe0a0;
+    selection-background-color: #8B6914;
+}
+
+QLineEdit:focus {
+    border-color: #f5c842;
+    background-color: #352210;
+}
+
+/* 按钮 */
+QPushButton {
+    border: 2px solid #8B6914;
+    border-radius: 6px;
+    padding: 8px 18px;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #5a3a10, stop:0.5 #7a5020, stop:1 #4a2a08);
+    color: #ffe0a0;
+    font-weight: bold;
+    min-width: 60px;
+}
+
+QPushButton:hover {
+    border-color: #f5c842;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #7a5020, stop:0.5 #9a6830, stop:1 #5a3a10);
+}
+
+QPushButton:pressed {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #3a2008, stop:0.5 #4a2a10, stop:1 #2a1004);
+}
+
+QPushButton:disabled {
+    border-color: #4a3a20;
+    background: #2a1a10;
+    color: #6a5a40;
+}
+
+/* 主要按钮（连接、开始） */
+QPushButton#btn_connect, QPushButton#btn_start {
+    border: 2px solid #d4a017;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #8B6914, stop:0.5 #a08020, stop:1 #6B5010);
+    font-size: 14px;
+}
+
+/* 标签 */
+QLabel {
+    color: #e0d0b0;
+    background: transparent;
+}
+
+/* 复选框 */
+QCheckBox {
+    color: #e0d0b0;
+    spacing: 8px;
+}
+
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #8B6914;
+    border-radius: 3px;
+    background-color: #2a1a08;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #8B6914;
+    border-color: #f5c842;
+}
+
+/* 滚动条 */
+QScrollBar:vertical {
+    border: none;
+    background: #1a0e04;
+    width: 10px;
+    border-radius: 5px;
+}
+QScrollBar::handle:vertical {
+    background: #6B5010;
+    border-radius: 5px;
+    min-height: 30px;
+}
+QScrollBar::handle:vertical:hover {
+    background: #8B6914;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0;
+}
+
+/* 文本编辑/日志区 */
+QTextEdit, QPlainTextEdit {
+    border: 2px solid #5a3a10;
+    border-radius: 6px;
+    background-color: #0d0803;
+    color: #c0a870;
+    padding: 8px;
+    selection-background-color: #8B6914;
+}
+
+/* 下拉框 */
+QComboBox {
+    border: 2px solid #6B5010;
+    border-radius: 6px;
+    padding: 6px 10px;
+    background-color: #2a1a08;
+    color: #ffe0a0;
+}
+
+QComboBox::drop-down {
+    border: none;
+    background: #5a3a10;
+    border-radius: 0 4px 4px 0;
+}
+
+QComboBox QAbstractItemView {
+    border: 1px solid #8B6914;
+    background-color: #1e1206;
+    color: #ffe0a0;
+    selection-background-color: #8B6914;
+}
+
+/* 工具提示 */
+QToolTip {
+    background-color: #2a1a08;
+    border: 1px solid #8B6914;
+    color: #ffe0a0;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+/* 开始/停止按钮 */
+QPushButton#btn_start {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #6B8E23, stop:0.5 #8FBC2F, stop:1 #556B2F);
+    min-height: 36px;
+    font-size: 15px;
+}
+QPushButton#btn_start:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #7BA428, stop:0.5 #9FCB3F, stop:1 #657B2F);
+}
+QPushButton#btn_stop {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #8B3A3A, stop:0.5 #A0522D, stop:1 #6B2020);
+    min-height: 36px;
+    font-size: 15px;
+}
+QPushButton#btn_stop:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #9B4A4A, stop:0.5 #B0623D, stop:1 #7B3030);
+}
+
+/* 状态标签 */
+QLabel[status="running"] { color: #a5d63e; font-weight: bold; }
+QLabel[status="stopped"] { color: #8a7a60; font-weight: bold; }

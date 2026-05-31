@@ -34,18 +34,19 @@ class GuiLogStream:
 
 
 class BotGUI(QMainWindow):
-    VERSION = "1.6.0"
+    VERSION = "1.7.0"
     GITHUB_API = "https://api.github.com/repos/hubugui1111-lab/MaaTavernBot/releases/latest"
     CHANGELOG = """
-MaaTavernBot v1.5 更新内容:
+MaaTavernBot v1.7 更新内容:
 
-• 全新顶部导航界面，功能分区切换
-• 任务自动更换功能 (Vision + MinerU OCR)
+• 炉石酒馆主题 QSS 界面 (金色边框 + 暖色文字 + 暗棕底)
+• PushPlus 微信异常告警 (卡住/断线自动通知)
+• 版本检查修复 (1.5 和 1.5.0 不再误判)
+• 桌面快捷方式 bat 文件
+• 11 种界面模板匹配导航
+• 任务自动更换 (MinerU OCR + 千问备份)
+• 软件图标: 炉石石碑漩涡
 • 启动自动杀旧进程
-• 代码审查修复 3 个关键 Bug
-• 随从检测增强 (蓝+绿+金+白四色)
-• 日志输出到 GUI 日志区
-• 各功能新增分区，工具扩展预留位
 """.strip()
 
     def __init__(self):
@@ -61,7 +62,6 @@ MaaTavernBot v1.5 更新内容:
         ico = os.path.join(self._app_dir, "resource", "app_icon.ico")
         if os.path.exists(ico):
             self.setWindowIcon(QIcon(ico))
-
         self.controller = None; self.tasker = None
         self.running = False; self.connected = False
         self.log_signal = LogSignal()
@@ -82,26 +82,8 @@ MaaTavernBot v1.5 更新内容:
         QTimer.singleShot(1500, self._auto_connect)
 
     def _setup_theme(self):
-        d, m, a, l, t = "#1a0f0a", "#2E1A0E", "#5D4037", "#8D6E63", "#EFEBE9"
-        self.setStyleSheet(f"""
-            QMainWindow {{ background-color: {d}; }}
-            QWidget {{ color: {t}; font-family: Microsoft YaHei; font-size: 13px; }}
-            QGroupBox {{ border: 1px solid {a}; border-radius: 6px; margin-top: 14px; padding: 16px 8px 8px 8px; font-weight: bold; }}
-            QGroupBox::title {{ subcontrol-origin: margin; left: 12px; padding: 0 6px; color: {t}; }}
-            QLineEdit {{ background: {m}; border: 1px solid {a}; border-radius: 4px; padding: 6px 8px; }}
-            QTextEdit {{ background: {m}; border: 1px solid {a}; border-radius: 4px; font-size: 12px; }}
-            QPushButton {{ background: {a}; border: none; border-radius: 4px; padding: 7px 16px; min-width: 60px; }}
-            QPushButton:hover {{ background: {l}; }}
-            QPushButton:disabled {{ background: #4E342E; color: #8D6E63; }}
-            QDateEdit,QTimeEdit {{ background: {m}; border: 1px solid {a}; border-radius: 4px; padding: 4px 8px; }}
-            QCheckBox {{ spacing: 6px; }} QCheckBox::indicator {{ width: 16px; height: 16px; }}
-            QLabel#title {{ font-size: 20px; font-weight: bold; padding: 4px; }}
-            QLabel#nav_btn {{ padding: 6px 16px; border-radius: 4px; font-size: 14px; }}
-            QLabel#nav_btn:hover {{ background: {a}; }}
-            QFrame#status_bar {{ background: {a}; border-radius: 4px; padding: 6px; }}
-            QScrollArea {{ border: none; }}
-            QMessageBox,QDialog {{ background-color: {m}; }}
-        """)
+        # QSS 已由 main() 从 resource/tavern.qss 加载
+        pass
 
     def _build_ui(self):
         c = QWidget(); self.setCentralWidget(c)
@@ -154,14 +136,14 @@ MaaTavernBot v1.5 更新内容:
         gs = QGroupBox("运行状态"); gsl = QVBoxLayout(gs)
         self.status_bar = QFrame(); self.status_bar.setObjectName("status_bar"); sb = QHBoxLayout(self.status_bar)
         self.lbl_phase = QLabel("阶段: -"); self.lbl_turn = QLabel("回合: -"); self.lbl_running = QLabel("● 已停止")
-        self.lbl_running.setStyleSheet("color:#9E9E9E;font-weight:bold;")
+        self.lbl_running.setProperty("status", "stopped")
         sb.addWidget(self.lbl_phase); sb.addWidget(self.lbl_turn); sb.addStretch(); sb.addWidget(self.lbl_running)
         gsl.addWidget(self.status_bar); ll.addWidget(gs)
 
         # 控制按钮
         gc = QGroupBox("控制"); gcl = QHBoxLayout(gc)
-        self.btn_start = QPushButton("▶ 开始"); self.btn_start.setObjectName("btn_start"); self.btn_start.setStyleSheet("QPushButton#btn_start{background:#2E7D32;min-height:36px;}QPushButton#btn_start:hover{background:#388E3C;}")
-        self.btn_stop = QPushButton("■ 停止"); self.btn_stop.setObjectName("btn_stop"); self.btn_stop.setStyleSheet("QPushButton#btn_stop{background:#C62828;min-height:36px;}QPushButton#btn_stop:hover{background:#D32F2F;}")
+        self.btn_start = QPushButton("▶ 开始"); self.btn_start.setObjectName("btn_start")
+        self.btn_stop = QPushButton("■ 停止"); self.btn_stop.setObjectName("btn_stop")
         self.btn_stop.setEnabled(False)
         btn_tray = QPushButton("⤓ 托盘"); btn_tray.clicked.connect(self._minimize_to_tray)
         gcl.addWidget(self.btn_start); gcl.addWidget(self.btn_stop); gcl.addWidget(btn_tray)
@@ -295,7 +277,12 @@ MuMu模拟器，分辨率<b>1600×900横屏、DPI 240</b>，开启ADB调试</p>
             if cb.isChecked():
                 cfg = self._cfg_path()
                 os.makedirs(os.path.dirname(cfg), exist_ok=True)
-                with open(cfg, 'w') as f: json.dump({"announcement_seen": self.VERSION}, f)
+                existing = {}
+                if os.path.exists(cfg):
+                    with open(cfg) as f:
+                        existing = json.load(f)
+                existing["announcement_seen"] = self.VERSION
+                with open(cfg, 'w') as f: json.dump(existing, f)
         except Exception as e:
             self._log(f"[公告] 错误: {e}")
 
@@ -445,17 +432,23 @@ MuMu模拟器，分辨率<b>1600×900横屏、DPI 240</b>，开启ADB调试</p>
     def _start(self):
         if not self.tasker: self._log("[错误] 请先连接"); return
         if self.running: self._log("[警告] 已在运行中"); return
-        # 保存 PushPlus token
+        # 保存 PushPlus token (读-改-写，不冲掉其他配置)
         try:
             import json
             tok = self.token_input.text().strip()
-            with open(self._cfg_path(), 'w') as f:
-                json.dump({"pushplus_token": tok}, f)
+            cfg = {}
+            cfg_path = self._cfg_path()
+            if os.path.exists(cfg_path):
+                with open(cfg_path) as f:
+                    cfg = json.load(f)
+            cfg["pushplus_token"] = tok
+            with open(cfg_path, 'w') as f:
+                json.dump(cfg, f)
             from bot.notify import set_token
             set_token(tok)
         except: pass
         self.btn_start.setEnabled(False); self.btn_stop.setEnabled(True); self.running = True
-        self.lbl_running.setText("● 运行中"); self.lbl_running.setStyleSheet("color:#4CAF50;font-weight:bold;")
+        self.lbl_running.setText("● 运行中"); self.lbl_running.setProperty("status", "running"); self.lbl_running.style().unpolish(self.lbl_running); self.lbl_running.style().polish(self.lbl_running)
         self._log("检测游戏状态..."); self._orig_stdout = sys.stdout; sys.stdout = GuiLogStream(self.log_signal)
         def do():
             try:
@@ -490,7 +483,7 @@ MuMu模拟器，分辨率<b>1600×900横屏、DPI 240</b>，开启ADB调试</p>
 
     def _stop(self, close_game=False):
         self.running = False; self.btn_stop.setEnabled(False)
-        self.lbl_running.setText("● 已停止"); self.lbl_running.setStyleSheet("color:#9E9E9E;font-weight:bold;")
+        self.lbl_running.setText("● 已停止"); self.lbl_running.setProperty("status", "stopped"); self.lbl_running.style().unpolish(self.lbl_running); self.lbl_running.style().polish(self.lbl_running)
         self._log("停止中...")
         if hasattr(self, '_orig_stdout'): sys.stdout = self._orig_stdout
         def do():
@@ -554,13 +547,19 @@ MuMu模拟器，分辨率<b>1600×900横屏、DPI 240</b>，开启ADB调试</p>
 
     def _on_start_fail(self):
         self.btn_start.setEnabled(True); self.btn_stop.setEnabled(False)
-        self.lbl_running.setText("● 已停止"); self.lbl_running.setStyleSheet("color:#9E9E9E;font-weight:bold;")
+        self.lbl_running.setText("● 已停止"); self.lbl_running.setProperty("status", "stopped"); self.lbl_running.style().unpolish(self.lbl_running); self.lbl_running.style().polish(self.lbl_running)
 
     def _minimize_to_tray(self): self.hide(); self._log("已最小化到托盘")
 
 
 def main():
     app = QApplication(sys.argv); app.setStyle("Fusion")
+    # 加载炉石酒馆 QSS 样式
+    app_dir = sys._MEIPASS if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
+    qss_path = os.path.join(app_dir, "resource", "tavern.qss")
+    if os.path.exists(qss_path):
+        with open(qss_path, "r", encoding="utf-8") as f:
+            app.setStyleSheet(f.read())
     app.setQuitOnLastWindowClosed(False)
     BotGUI().show(); sys.exit(app.exec())
 
