@@ -48,6 +48,8 @@ class BotAction(CustomAction):
         self._hero_done = False  # 英雄选择只执行一次
         self._same_phase_count = 0
         self._stuck_level = 0  # 卡住级别: 0=正常 1=2分钟自救过 2=5分钟重启过
+        self._offline_count = 0  # 连续截图失败次数
+        self._last_ok_time = time.time()  # 最后正常时间
 
     @staticmethod
     def _adb_shell(cmd):
@@ -129,6 +131,11 @@ class BotAction(CustomAction):
         # 检查停止信号
         if context.tasker.stopping:
             return True
+
+        # ADB 连线检测
+        if not self._check_adb_alive(context.tasker.controller):
+            time.sleep(3)
+            return True  # 离线，跳过本次循环
 
         reco_detail = argv.reco_detail
         if reco_detail and reco_detail.best_result:
@@ -477,6 +484,25 @@ class BotAction(CustomAction):
             pass
         return ""
 
+    def _check_adb_alive(self, ctrl):
+        """检测 ADB 是否在线，连续失败 3 次发掉线通知。返回 True=在线"""
+        try:
+            img = ctrl.post_screencap().wait().get()
+        except Exception:
+            img = None
+        if img is None or img.size == 0:
+            self._offline_count += 1
+            if self._offline_count == 3:
+                try:
+                    from .notify import send_alert
+                    send_alert("掉线",
+                        f"Bot 与模拟器断开<br>最后活跃: {time.strftime('%H:%M:%S', time.localtime(self._last_ok_time))}")
+                except: pass
+            return False
+        self._offline_count = 0
+        self._last_ok_time = time.time()
+        return True
+
     def _restart_game(self):
         """强制重启炉石传说"""
         _log("[重启] 强制关闭游戏...")
@@ -487,8 +513,19 @@ class BotAction(CustomAction):
             self._adb_shell("am start -n com.blizzard.wtcg.hearthstone/.Startup")
             time.sleep(10)
             _log("[重启] 游戏已重启")
+            # PushPlus 通知
+            try:
+                from .notify import send_alert
+                send_alert("卡住重启",
+                    f"Bot 已自动重启<br>时间: {time.strftime('%H:%M:%S')}<br>版本: v1.5")
+            except: pass
         except Exception as e:
             _log(f"[重启] 失败: {e}")
+            try:
+                from .notify import send_alert
+                send_alert("掉线",
+                    f"Bot 重启失败，可能已断开<br>错误: {e}<br>时间: {time.strftime('%H:%M:%S')}")
+            except: pass
 
     def _handle_stuck(self, context, phase):
         """卡住自救：OCR 搜索返回 → 模板匹配 → 位置兜底 → 重启"""
