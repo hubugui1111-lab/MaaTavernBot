@@ -235,6 +235,18 @@ MuMu模拟器，分辨率<b>1600×900横屏、DPI 240</b>，开启ADB调试</p>
         btn_find = QPushButton("🔍 查找设备"); btn_find.clicked.connect(self._list_devices); gl.addWidget(btn_find)
         l.addWidget(g)
 
+        # PushPlus 通知设置
+        g_push = QGroupBox("PushPlus 微信通知"); g_push_l = QVBoxLayout(g_push)
+        r_tok = QHBoxLayout()
+        r_tok.addWidget(QLabel("Token:"))
+        self.token_input = QLineEdit("")
+        self.token_input.setMaximumWidth(280)
+        self.token_input.setPlaceholderText("输入 PushPlus Token 启用掉线/卡住微信通知")
+        r_tok.addWidget(self.token_input)
+        r_tok.addStretch()
+        g_push_l.addLayout(r_tok)
+        l.addWidget(g_push)
+
         g2 = QGroupBox("关于"); g2l = QVBoxLayout(g2)
         g2l.addWidget(QLabel(f"版本: v{self.VERSION}"))
         btn_chk = QPushButton("🔍 检测更新"); btn_chk.clicked.connect(lambda: self._check_update(silent=False)); g2l.addWidget(btn_chk)
@@ -396,6 +408,17 @@ MuMu模拟器，分辨率<b>1600×900横屏、DPI 240</b>，开启ADB调试</p>
                 self.tasker = Tasker(); self.tasker.bind(res, self.controller)
                 if not self.tasker.inited: self.log_signal.new_log.emit("[错误] 初始化失败"); self.log_signal.conn_fail.emit(); return
                 self.connected = True; self._save_port(port)
+                # 加载 PushPlus token
+                try:
+                    import json
+                    cfg_path = self._cfg_path()
+                    if os.path.exists(cfg_path):
+                        with open(cfg_path) as f:
+                            tok = json.load(f).get("pushplus_token", "")
+                            self.token_input.setText(tok)
+                            from bot.notify import set_token
+                            set_token(tok)
+                except: pass
                 self.log_signal.new_log.emit("[信息] 连接成功"); self.log_signal.conn_ok.emit()
             except Exception as e: self.log_signal.new_log.emit(f"[错误] {e}"); self.log_signal.conn_fail.emit()
         threading.Thread(target=do, daemon=True).start()
@@ -420,6 +443,15 @@ MuMu模拟器，分辨率<b>1600×900横屏、DPI 240</b>，开启ADB调试</p>
     def _start(self):
         if not self.tasker: self._log("[错误] 请先连接"); return
         if self.running: self._log("[警告] 已在运行中"); return
+        # 保存 PushPlus token
+        try:
+            import json
+            tok = self.token_input.text().strip()
+            with open(self._cfg_path(), 'w') as f:
+                json.dump({"pushplus_token": tok}, f)
+            from bot.notify import set_token
+            set_token(tok)
+        except: pass
         self.btn_start.setEnabled(False); self.btn_stop.setEnabled(True); self.running = True
         self.lbl_running.setText("● 运行中"); self.lbl_running.setStyleSheet("color:#4CAF50;font-weight:bold;")
         self._log("检测游戏状态..."); self._orig_stdout = sys.stdout; sys.stdout = GuiLogStream(self.log_signal)
