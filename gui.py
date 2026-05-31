@@ -468,6 +468,11 @@ MuMu模拟器，分辨率<b>1600×900横屏、DPI 240</b>，开启ADB调试</p>
                 self.log_signal.new_log.emit(f"[启动] 错误: {e}")
                 self.running = False
                 if hasattr(self, '_orig_stdout'): sys.stdout = self._orig_stdout
+                # 截图失败 → PushPlus 掉线通知
+                try:
+                    from bot.notify import send_alert
+                    send_alert("掉线", f"Bot 启动失败，可能已断开<br>错误: {e}<br>时间: {__import__('time').strftime('%H:%M:%S')}")
+                except: pass
                 self.log_signal.start_fail.emit()
                 return
             if phase not in known:
