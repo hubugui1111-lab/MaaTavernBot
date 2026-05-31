@@ -517,7 +517,7 @@ class BotAction(CustomAction):
             try:
                 from .notify import send_alert
                 send_alert("卡住重启",
-                    f"Bot 已自动重启<br>时间: {time.strftime('%H:%M:%S')}<br>版本: v1.5")
+                    f"Bot 已自动重启<br>时间: {time.strftime('%H:%M:%S')}<br>版本: v1.6.0")
             except: pass
         except Exception as e:
             _log(f"[重启] 失败: {e}")

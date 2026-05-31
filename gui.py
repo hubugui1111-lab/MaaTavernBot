@@ -34,7 +34,7 @@ class GuiLogStream:
 
 
 class BotGUI(QMainWindow):
-    VERSION = "1.5.0"
+    VERSION = "1.6.0"
     GITHUB_API = "https://api.github.com/repos/hubugui1111-lab/MaaTavernBot/releases/latest"
     CHANGELOG = """
 MaaTavernBot v1.5 更新内容:
