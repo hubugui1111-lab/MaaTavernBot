@@ -314,13 +314,15 @@ MuMu模拟器，分辨率<b>1600×900横屏、DPI 240</b>，开启ADB调试</p>
                     return
                 cur_parts = [int(x) for x in self.VERSION.split(".")]
                 new_parts = [int(x) for x in latest.split(".")]
+                # 补零对齐: 1.5 vs 1.5.0 → [1,5,0] vs [1,5,0]
+                max_len = max(len(cur_parts), len(new_parts))
+                cur_parts += [0] * (max_len - len(cur_parts))
+                new_parts += [0] * (max_len - len(new_parts))
                 newer = False
                 for c, n in zip(cur_parts, new_parts):
                     if n > c: newer = True; break
                     if n < c: break
-                if not newer and len(new_parts) > len(cur_parts):
-                    newer = True
-                same = latest == self.VERSION
+                same = cur_parts == new_parts
                 if same and not silent:
                     self.log_signal.show_dialog.emit("检测更新", f"当前 v{self.VERSION} 已是最新版本")
                 else:
