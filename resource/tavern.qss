@@ -200,3 +200,52 @@ QPushButton#btn_stop:hover {
 /* 状态标签 */
 QLabel[status="running"] { color: #a5d63e; font-weight: bold; }
 QLabel[status="stopped"] { color: #8a7a60; font-weight: bold; }
+QLabel[status="connected"] { color: #a5d63e; font-weight: bold; }
+QLabel[status="disconnected"] { color: #8a7a60; font-weight: bold; }
+
+/* 导航按钮 */
+QLabel#nav_btn {
+    padding: 6px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+}
+QLabel#nav_btn:hover {
+    background: #5D4037;
+}
+
+/* 弹窗 */
+QDialog, QMessageBox {
+    background-color: #1a0f0a;
+    color: #f0e0c0;
+}
+QDialog QLabel, QMessageBox QLabel {
+    color: #f0e0c0;
+}
+
+/* 时间编辑器 */
+QTimeEdit, QDateEdit {
+    background: #2a1a08;
+    border: 2px solid #6B5010;
+    border-radius: 4px;
+    padding: 4px 8px;
+    color: #ffe0a0;
+}
+
+/* 水平滚动条 */
+QScrollBar:horizontal {
+    border: none;
+    background: #1a0e04;
+    height: 10px;
+    border-radius: 5px;
+}
+QScrollBar::handle:horizontal {
+    background: #6B5010;
+    border-radius: 5px;
+    min-width: 30px;
+}
+QScrollBar::handle:horizontal:hover {
+    background: #8B6914;
+}
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0;
+}

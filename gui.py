@@ -211,7 +211,7 @@ MuMu模拟器，分辨率<b>1600×900横屏、DPI 240</b>，开启ADB调试</p>
         r = QHBoxLayout(); r.addWidget(QLabel("端口:"))
         self.port_input = QLineEdit("16416"); self.port_input.setMaximumWidth(120); r.addWidget(self.port_input)
         self.btn_connect = QPushButton("连接"); r.addWidget(self.btn_connect)
-        self.conn_status = QLabel("● 未连接"); self.conn_status.setStyleSheet("color:#9E9E9E;font-weight:bold;")
+        self.conn_status = QLabel("● 未连接"); self.conn_status.setProperty("status", "disconnected")
         r.addWidget(self.conn_status); r.addStretch()
         gl.addLayout(r)
         btn_find = QPushButton("🔍 查找设备"); btn_find.clicked.connect(self._list_devices); gl.addWidget(btn_find)
@@ -247,7 +247,7 @@ MuMu模拟器，分辨率<b>1600×900横屏、DPI 240</b>，开启ADB调试</p>
             px = QPixmap(32,32); px.fill(Qt.GlobalColor.transparent); p = QPainter(px)
             p.setBrush(QColor("#5D4037")); p.drawRoundedRect(2,2,28,28,6,6); p.end()
             self.tray.setIcon(QIcon(px))
-        self.tray.setToolTip("MaaTavernBot v1.5")
+        self.tray.setToolTip(f"MaaTavernBot v{self.VERSION}")
         m = QMenu(); m.addAction("显示").triggered.connect(self._show_window)
         m.addAction("退出").triggered.connect(self._quit_app)
         self.tray.setContextMenu(m); self.tray.show()
@@ -540,7 +540,7 @@ MuMu模拟器，分辨率<b>1600×900横屏、DPI 240</b>，开启ADB调试</p>
         self.time_end.timeChanged.connect(lambda: self._check_schedule())
 
     def _on_conn_ok(self):
-        self.conn_status.setText("● 已连接"); self.conn_status.setStyleSheet("color:#4CAF50;font-weight:bold;")
+        self.conn_status.setText("● 已连接"); self.conn_status.setProperty("status", "connected"); self.conn_status.style().unpolish(self.conn_status); self.conn_status.style().polish(self.conn_status)
 
     def _on_conn_fail(self):
         self.btn_connect.setEnabled(True)
